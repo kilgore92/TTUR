@@ -59,12 +59,12 @@ def _get_inception_layer(sess):
                   new_shape.append(None)
                 else:
                   new_shape.append(s)
-              o._shape = tf.TensorShape(new_shape)
+              o.set_shape(new_shape)
     return pool3
 #-------------------------------------------------------------------------------
 
 
-def get_activations(images, sess, batch_size=50, verbose=False):
+def get_activations(images, sess, batch_size=1, verbose=False):
     """Calculates the activations of the pool_3 layer for all images.
 
     Params:
@@ -106,7 +106,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     The Frechet distance between two multivariate Gaussians X_1 ~ N(mu_1, C_1)
     and X_2 ~ N(mu_2, C_2) is
             d^2 = ||mu_1 - mu_2||^2 + Tr(C_1 + C_2 - 2*sqrt(C_1*C_2)).
-            
+
     Stable version by Dougal J. Sutherland.
 
     Params:
@@ -156,7 +156,7 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 #-------------------------------------------------------------------------------
 
 
-def calculate_activation_statistics(images, sess, batch_size=50, verbose=False):
+def calculate_activation_statistics(images, sess, batch_size=1, verbose=False):
     """Calculation of the statistics used by the FID.
     Params:
     -- images      : Numpy array of dimension (n_images, hi, wi, 3). The values
@@ -211,7 +211,7 @@ def _handle_path(path, sess):
         path = pathlib.Path(path)
         files = list(path.glob('*.jpg')) + list(path.glob('*.png'))
         x = np.array([imread(str(fn)).astype(np.float32) for fn in files])
-        m, s = calculate_activation_statistics(x, sess)
+        m, s = calculate_activation_statistics(x, sess,verbose=True)
     return m, s
 
 
@@ -224,7 +224,12 @@ def calculate_fid_given_paths(paths, inception_path):
             raise RuntimeError("Invalid path: %s" % p)
 
     create_inception_graph(str(inception_path))
-    with tf.Session() as sess:
+
+    # Choose GPU
+    tf_config =  tf.ConfigProto()
+    tf_config.gpu_options.visible_device_list = "1"
+
+    with tf.Session(config = tf_config) as sess:
         sess.run(tf.global_variables_initializer())
         m1, s1 = _handle_path(paths[0], sess)
         m2, s2 = _handle_path(paths[1], sess)
@@ -237,11 +242,8 @@ if __name__ == "__main__":
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument("path", type=str, nargs=2,
         help='Path to the generated images or to .npz statistic files')
-    parser.add_argument("-i", "--inception", type=str, default=None,
+    parser.add_argument("-i", "--inception", type=str, default='/home/ibhat/fid/TTUR/inception_model',
         help='Path to Inception model (will be downloaded if not provided)')
-    parser.add_argument("--gpu", default="", type=str,
-        help='GPU to use (leave blank for CPU only)')
     args = parser.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     fid_value = calculate_fid_given_paths(args.path, args.inception)
     print("FID: ", fid_value)

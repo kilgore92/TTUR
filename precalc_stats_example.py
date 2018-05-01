@@ -11,13 +11,13 @@ import tensorflow as tf
 ########
 # PATHS
 ########
-data_path = 'data' # set path to training set images
+data_path = '' # set path to training set images
 output_path = 'fid_stats.npz' # path for where to store the statistics
 # if you have downloaded and extracted
 #   http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz
 # set this path to the directory where the extracted files are, otherwise
 # just set it to None and the script will later download the files for you
-inception_path = None
+inception_path = '/home/ibhat/fid/TTUR/inception_model'
 print("check for inception model..", end=" ", flush=True)
 inception_path = fid.check_or_download_inception(inception_path) # download inception if necessary
 print("ok")
@@ -33,7 +33,9 @@ fid.create_inception_graph(inception_path)  # load the graph into the current TF
 print("ok")
 
 print("calculte FID stats..", end=" ", flush=True)
-with tf.Session() as sess:
+tf_config = tf.ConfigProto()
+tf_config.gpu_options.visible_device_list = "1"
+with tf.Session(config=tf_config) as sess:
     sess.run(tf.global_variables_initializer())
     mu, sigma = fid.calculate_activation_statistics(images, sess, batch_size=100)
     np.savez_compressed(output_path, mu=mu, sigma=sigma)
