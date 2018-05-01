@@ -25,7 +25,7 @@ from scipy.misc import imread
 from scipy import linalg
 import pathlib
 import urllib
-
+import pickle
 
 class InvalidFIDException(Exception):
     pass
@@ -228,22 +228,37 @@ def calculate_fid_given_paths(paths, inception_path):
     # Choose GPU
     tf_config =  tf.ConfigProto()
     tf_config.gpu_options.visible_device_list = "1"
-
+    fid_dict = {}
     with tf.Session(config = tf_config) as sess:
         sess.run(tf.global_variables_initializer())
         m1, s1 = _handle_path(paths[0], sess)
-        m2, s2 = _handle_path(paths[1], sess)
-        fid_value = calculate_frechet_distance(m1, s1, m2, s2)
-        return fid_value
+        for idx in range(1,len(paths)):
+            print('Calculating FID for images in {}'.format(paths[idx]))
+            m2, s2 = _handle_path(paths[idx], sess)
+            fid_value = calculate_frechet_distance(m1, s1, m2, s2)
+            fid_dict[paths[idx]] = fid_value
+    print(fid_dict)
+    # Serialize and save the dict
+    with open('fid_dict.pkl','wb') as f:
+        pickle.dump(fid_dict,f)
 
+def create_generated_folder_path(model):
+    """
+    Given model, generate path for eval dir
+    """
+    base_path = '/home/ibhat/gans_compare/tf.gans-comparison/eval/celeba'
+    return os.path.join(base_path,model)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("path", type=str, nargs=2,
-        help='Path to the generated images or to .npz statistic files')
     parser.add_argument("-i", "--inception", type=str, default='/home/ibhat/fid/TTUR/inception_model',
         help='Path to Inception model (will be downloaded if not provided)')
     args = parser.parse_args()
-    fid_value = calculate_fid_given_paths(args.path, args.inception)
-    print("FID: ", fid_value)
+    paths = []
+    models = ['dcgan','dcgan-gp','wgan','wgan-gp','dragan','dcgan-cons']
+
+    paths.append(os.path.join(os.getcwd(),'fid_stats_celeba.npz'))
+    for model in models:
+        paths.append(create_generated_folder_path(model))
+    calculate_fid_given_paths(paths, args.inception)
