@@ -173,6 +173,7 @@ def calculate_activation_statistics(images, sess, batch_size=1, verbose=False):
                the incption model.
     """
     act = get_activations(images, sess, batch_size, verbose)
+    print('Shape of activation is : {}'.format(act.shape))
     mu = np.mean(act, axis=0)
     sigma = np.cov(act, rowvar=False)
     return mu, sigma
